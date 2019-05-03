@@ -116,16 +116,17 @@ def partition(darr,pnum):
   for i,l in enumerate(darr):
     tmp[i] = l
     scnt = scnt + 1
-    if scnt > psize and pcnt != pnum - 1:
+    if scnt >= psize and pcnt != pnum:
       dn = tmp.copy()
       res.append(dn)
       tmp = dict()
       pcnt = pcnt + 1
       scnt = 0
-    elif scnt > psize and pcnt == pnum - 1:
+    elif scnt >= psize and pcnt == pnum:
       if i == len(darr) - 1:
         dn = tmp.copy()
         res.append(dn)
+
   return res
         
 #measure the accuracy of a map in identifying errors
@@ -170,7 +171,7 @@ def main():
   writeDV(ofile,dfile,cnum)
   gtarr = parseF(ofile,True,cnum)
   darr = parseF(dfile,False,cnum)
-  sample = pickSample(darr, len(gtarr)/8) 
+  sample = pickSample(darr, len(gtarr)/2) 
   newrules = f_clean(sample,gtarr)
   
   #Empirical Accuracy
@@ -178,7 +179,7 @@ def main():
   print(eA)
 
   #Cross-Validation
-  cV = crossVal(darr,8,gtarr)
+  cV = crossVal(darr,2,gtarr)
   print(cV)
        
 
