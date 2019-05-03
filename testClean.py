@@ -85,6 +85,14 @@ def numErrors(darr,gt):
     if darr[i] != g:
       res = res + 1
   return res
+
+#find the number of errors in the given sample of the dirty dataset
+def numES(sample,gt):
+  res = 0
+  for i in sample:
+    if sample[i] != gt[i]:
+      res = res + 1
+  return res
   
 
 #measure the empirical accuracy of the given mapping on the full dataset
@@ -97,6 +105,58 @@ def empAcc(mapping,ffull,gt):
       ccnt = ccnt + 1
   acc = float(ccnt) / float(denom)
   return acc 
+
+#partition given array, darr, into pnum parts
+def partition(darr,pnum):
+  res = list()
+  psize = len(darr) / pnum
+  tmp = dict()
+  scnt = 0 #size count
+  pcnt = 0 #part count
+  for i,l in enumerate(darr):
+    tmp[i] = l
+    scnt = scnt + 1
+    if scnt > psize and pcnt != pnum - 1:
+      dn = tmp.copy()
+      res.append(dn)
+      tmp = dict()
+      pcnt = pcnt + 1
+      scnt = 0
+    elif scnt > psize and pcnt == pnum - 1:
+      if i == len(darr) - 1:
+        dn = tmp.copy()
+        res.append(dn)
+  return res
+        
+#measure the accuracy of a map in identifying errors
+#in a sample, as opposed to the entire dataset
+def hAcc(mapping,sample,gt):
+  ccnt = 0
+  denom = numES(sample,gt)
+  for key in sample:
+    dstr = sample[key]
+    value = mapping.get(dstr)
+    if value != None:
+      ccnt = ccnt + 1
+  res = float(ccnt) / float(denom)
+  return res
+
+#measure the accuracy of a map built using cross-validation
+def crossVal(darr,pnum,gtarr):
+  parts = partition(darr,pnum) 
+  mapping = dict()
+  avg = 0.0
+  for i,holdout in enumerate(parts):
+    for j,p in enumerate(parts):
+      if j == i:
+        continue
+      newrules = f_clean(p,gtarr)
+      mapping.update(newrules)
+    #use the mapping here, and then set it back to dict() 
+    acc = hAcc(newrules,holdout,gtarr)
+    avg = avg + acc
+  res = avg / float(len(parts))
+  return res
 
 #Finds and displays the results for percentage of errors remaining in testing set after using
 #empirical accuracy, cross-validation, and species estimation approaches
@@ -112,7 +172,14 @@ def main():
   darr = parseF(dfile,False,cnum)
   sample = pickSample(darr, len(gtarr)/8) 
   newrules = f_clean(sample,gtarr)
+  
+  #Empirical Accuracy
   eA = empAcc(newrules,darr,gtarr)
   print(eA)
-     
+
+  #Cross-Validation
+  cV = crossVal(darr,8,gtarr)
+  print(cV)
+       
+
 main()
