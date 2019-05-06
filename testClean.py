@@ -69,13 +69,17 @@ def parseF(filename,header,colnum):
 #determine whether the strings match. If they do not, then fix the strings in the dictionary
 #and add incorrect string --> correct string to the result dictionary. Return this result dictionary
 #after going over the sample dictionary
-def f_clean(sample,g_truth):
+def f_clean(sample,darr,g_truth):
   res = dict()
+  ecnt = 0
   for key in sample:
     errstr = sample[key]
     truestr = g_truth[key]
     if truestr != errstr:
+      ecnt = ecnt + 1
       res[errstr] = truestr 
+      darr[key] = truestr
+  print("Number of Errors in Sample: " + str(ecnt))
   return res
 
 #find the total number of errors in the dirty dataset
@@ -103,6 +107,9 @@ def empAcc(mapping,ffull,gt):
     value = mapping.get(e)
     if value != None:
       ccnt = ccnt + 1
+  print("Empirical Accuracy")
+  print("Number of Errors Fixed: " + str(ccnt))
+  print("Total Number of Errors: " + str(denom))
   acc = float(ccnt) / float(denom)
   return acc 
 
@@ -139,6 +146,8 @@ def hAcc(mapping,sample,gt):
     value = mapping.get(dstr)
     if value != None:
       ccnt = ccnt + 1
+  print("Number of Errors Fixed: " + str(ccnt))
+  print("Total Number of Errors: " + str(denom))
   res = float(ccnt) / float(denom)
   return res
 
@@ -148,12 +157,15 @@ def crossVal(darr,pnum,gtarr):
   mapping = dict()
   avg = 0.0
   for i,holdout in enumerate(parts):
+    dtmp = list()
+    dtmp[:] = darr
     for j,p in enumerate(parts):
       if j == i:
         continue
-      newrules = f_clean(p,gtarr)
+      newrules = f_clean(p,dtmp,gtarr)
       mapping.update(newrules)
     #use the mapping here, and then set it back to dict() 
+    print("Holdout: " + str(i))
     acc = hAcc(newrules,holdout,gtarr)
     avg = avg + acc
   res = avg / float(len(parts))
@@ -171,15 +183,17 @@ def main():
   writeDV(ofile,dfile,cnum)
   gtarr = parseF(ofile,True,cnum)
   darr = parseF(dfile,False,cnum)
-  sample = pickSample(darr, len(gtarr)/2) 
-  newrules = f_clean(sample,gtarr)
+  darr2 = list()
+  darr2[:] = darr
+  sample = pickSample(darr, len(gtarr)/8) 
+  newrules = f_clean(sample,darr,gtarr)
   
   #Empirical Accuracy
   eA = empAcc(newrules,darr,gtarr)
   print(eA)
 
   #Cross-Validation
-  cV = crossVal(darr,2,gtarr)
+  cV = crossVal(darr2,8,gtarr)
   print(cV)
        
 
