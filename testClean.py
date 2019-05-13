@@ -69,7 +69,7 @@ def parseF(filename,header,colnum):
 #and the g_truth as an array in the same order as the dictionary,
 #determine whether the strings match. If they do not, then fix the strings in the dictionary
 #and add incorrect string --> correct string to the result dictionary. Return this result dictionary
-#after going over the sample dictionary
+#after going over the sample dictionary and correcting the sample of the dirty dataset based on it.
 def f_clean(sample,darr,g_truth):
   res = dict()
   ecnt = 0
@@ -88,20 +88,26 @@ def f_clean(sample,darr,g_truth):
 #Then, find the string in the ground truth with the minimum Levenshtein distance from the dirty string.
 #Add this rule to the result
 #Return the resulting map
-def f_cleanv2(sample,darr,g_truth):
+def f_cleanv2(sample,darr,g_truth,thresh):
   res = dict()
   ecnt = 0
   for key in sample:
     errstr = sample[key]
+    cnlst = list()
     mindist = sys.maxint
     minInd = 0
     for i,s in enumerate(g_truth):
       dst = pL.distance(errstr,s)
-      if dst < mindist:
-        #print(dst)
+      if dst <= thresh:
+        cnlst.append(s)
+      elif dst < mindist:
         mindist = dst
         minInd = i
-    truestr = g_truth[minInd]
+    truestr = None
+    if len(cnlst) == 0:
+      truestr = g_truth[minInd]
+    else:
+      truestr = random.choice(cnlst)
     if truestr != errstr:
       ecnt = ecnt + 1
       res[errstr] = truestr
@@ -142,6 +148,27 @@ def empAcc(mapping,ffull,gt):
   acc = float(ccnt) / float(denom)
   return acc 
 
+#measure the empirical accuracy of the given the mapping on the full dataset,
+#which is prone to false positives
+#Also, we simply stop when we find the first string in the sample that matches close enough,
+#instead of finding them all and then randomly breaking ties. That could affect our results later.
+def empAccFP(mapping,ffull,gt,thresh):
+  denom = numErrors(ffull,gt)
+  ccnt = 0
+  for e in ffull:
+    d = False
+    for key in mapping:
+      if d == True:
+        break
+      elif pL.distance(key,e) <= thresh:
+        ccnt = ccnt + 1 
+        d = True
+  #print("Empirical Accuracy")
+  #print("Number of Errors Fixed: " + str(ccnt))
+  #print("Total Number of Errors: " + str(denom))
+  acc = float(ccnt) / float(denom)
+  return acc 
+
 #partition given array, darr, into pnum parts
 def partition(darr,pnum):
   res = list()
@@ -167,7 +194,30 @@ def partition(darr,pnum):
         
 #measure the accuracy of a map in identifying errors
 #in a sample, as opposed to the entire dataset
-def hAcc(mapping,sample,gt):
+#except now, the cleaning function is prone to false positives
+#Also, we simply stop when we find the first string in the sample that matches close enough,
+#instead of finding them all and then randomly breaking ties. That could affect our results later.
+def hAccFP(mapping,sample,gt,thresh):
+  ccnt = 0
+  denom = numES(sample,gt)
+  for key in sample:
+    dstr = sample[key]
+    d = False
+    for value in mapping:
+      if d == True:
+        break
+      elif pL.distance(dstr,value) <= thresh:
+        ccnt = ccnt + 1
+        d = True
+  #print("Number of Errors Fixed: " + str(ccnt))
+  #print("Total Number of Errors: " + str(denom))
+  res = float(ccnt) / float(denom)
+  return res
+
+#measure the accuracy of a map in identifying errors
+#in a sample, as opposed to the entire dataset
+#Note: here, thresh is an unused variable
+def hAcc(mapping,sample,gt,thresh):
   ccnt = 0
   denom = numES(sample,gt)
   for key in sample:
@@ -181,7 +231,7 @@ def hAcc(mapping,sample,gt):
   return res
 
 #measure the accuracy of a map built using cross-validation
-def crossVal(darr,pnum,gtarr,f_clean):
+def crossVal(darr,pnum,gtarr,thresh,hAcc):
   parts = partition(darr,pnum) 
   mapping = dict()
   avg = 0.0
@@ -195,7 +245,7 @@ def crossVal(darr,pnum,gtarr,f_clean):
       mapping.update(newrules)
     #use the mapping here, and then set it back to dict() 
     #print("Holdout: " + str(i))
-    acc = hAcc(newrules,holdout,gtarr)
+    acc = hAcc(newrules,holdout,gtarr,thresh)
     avg = avg + acc
   res = avg / float(len(parts))
   return res
@@ -210,6 +260,7 @@ def main():
   dfile = sys.argv[2]
   cnum = int(sys.argv[3])
   writeDV(ofile,dfile,cnum)
+  thresh = 10
   gtarr = parseF(ofile,True,cnum)
   darr = parseF(dfile,False,cnum)
   darr2 = list()
@@ -221,7 +272,7 @@ def main():
   eA = empAcc(newrules,darr,gtarr)
 
   #Cross-Validation
-  cV = crossVal(darr2,8,gtarr,f_clean)
+  cV = crossVal(darr2,8,gtarr,thresh,hAcc)
 
   print("Building a table from Sample and Ground Truth using Exact Match (and Position)")
   print("Empirical Accuracy- percentage of errors detected: " + str(eA))
@@ -232,13 +283,13 @@ def main():
   darr3 = list()
   darr3[:] = darr
   sample = pickSample(darrv2, len(gtarrv2)/8) 
-  newrules = f_cleanv2(sample,darrv2,gtarrv2)
+  newrules = f_clean(sample,darrv2,gtarrv2)
   
-  #Empirical Accuracy
-  eA = empAcc(newrules,darrv2,gtarrv2)
+  #Empirical Accuracy but with a cleaning function that exhibits false positives
+  eA = empAccFP(newrules,darrv2,gtarrv2,thresh)
 
-  #Cross-Validation
-  cV = crossVal(darr3,8,gtarrv2,f_cleanv2)
+  #Cross-Validation, but with a cleaning function that exhibits false positives
+  cV = crossVal(darr3,8,gtarrv2,thresh,hAccFP)
   
   print("Building a table from Sample and Ground Truth using Edit Distance")
   print("Empirical Accuracy- percentage of errors detected: " + str(eA))
