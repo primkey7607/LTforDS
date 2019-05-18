@@ -243,6 +243,23 @@ def hAccFP(mapping,sample,gt,thresh):
   res = float(ccnt) / float(denom)
   return res
 
+#measure the false positive rate of a map in identifying errors
+#in a sample, as opposed to the entire dataset
+def hFP(mapping,sample,gt,thresh):
+  ccnt = 0
+  denom = numCS(sample,gt)
+  for key in sample:
+    dstr = sample[key]
+    d = False
+    for value in mapping:
+      if d == True:
+        break
+      elif pL.distance(dstr,value) <= thresh and dstr == gt[key]:
+        ccnt = ccnt + 1
+        d = True
+  res = float(ccnt) / float(denom)
+  return res
+
 #measure the accuracy of a map in identifying errors
 #in a sample, as opposed to the entire dataset
 #Note: here, thresh is an unused variable
@@ -323,6 +340,21 @@ def main():
   print("Building a table from Sample and Ground Truth using Edit Distance")
   print("Empirical Accuracy- percentage of errors detected: " + str(eA))
   print("Cross-Validation- percentage of errors detected: " + str(cV))
+
+  gtarrv3 = parseF(ofile,True,cnum)
+  darrv3 = parseF(dfile,False,cnum)
+  darr4 = list()
+  darr4[:] = darr
+  sample = pickSample(darrv3, len(gtarrv3)/8) 
+  newrules = f_clean(sample,darrv3,gtarrv3)
+  #Empirical False positives
+  eA = empFP(newrules,darrv3,gtarrv3,thresh)
+
+  #Cross-Validation, but with a cleaning function that exhibits false positives
+  cV = crossVal(darr4,8,gtarrv3,thresh,hFP)
+  print("Measuring False Positive Rate")
+  print("Empirical False Positive Rate: " + str(eA))
+  print("Cross-Validation False Positive Rate: " + str(cV))
   
        
 
