@@ -125,6 +125,14 @@ def numErrors(darr,gt):
       res = res + 1
   return res
 
+#find the number of clean records in the dirty dataset
+def numClean(darr,gt):
+  res = 0
+  for i,g in enumerate(gt):
+    if darr[i] == g:
+      res = res + 1
+  return res
+
 #find the number of errors in the given sample of the dirty dataset
 def numES(sample,gt):
   res = 0
@@ -133,6 +141,13 @@ def numES(sample,gt):
       res = res + 1
   return res
   
+#find the number of clean records in the given sample of the dirty dataset
+def numCS(sample,gt):
+  res = 0
+  for i in sample: 
+    if sample[i] == gt[i]:
+      res = res + 1
+  return res
 
 #measure the empirical accuracy of the given mapping on the full dataset
 def empAcc(mapping,ffull,gt):
@@ -169,6 +184,20 @@ def empAccFP(mapping,ffull,gt,thresh):
   acc = float(ccnt) / float(denom)
   return acc 
 
+#measure the false transformation rate of the given mapping on the full dataset
+def empFP(mapping,ffull,gt,thresh):
+  denom = numClean(ffull,gt)
+  ccnt = 0
+  for i,e in enumerate(ffull):
+    d = False
+    for key in mapping:
+      if d == True:
+        break
+      elif pL.distance(key,e) <= thresh and ffull[i] == gt[i]:
+        ccnt = ccnt + 1
+        d = True
+  fts = float(ccnt) / float(denom)
+  return fts
 #partition given array, darr, into pnum parts
 def partition(darr,pnum):
   res = list()
