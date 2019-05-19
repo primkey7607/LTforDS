@@ -296,6 +296,35 @@ def crossVal(darr,pnum,gtarr,thresh,hAcc):
   res = avg / float(len(parts))
   return res
 
+#######################Chao92 Estimator##############################
+
+#an implementation of the Chao92 Estimator assuming no skew in the data
+#it returns the predicted number of errors in the full dataset
+def Chao92noSkew(sample,gtarr):
+  f1 = 0 #f1 statistic
+  n = 0 #n
+  cnom = 0 #c_nominal
+  dct = dict()
+  for key in sample:
+    d = sample[key]
+    if d != gtarr[key]:
+      val = dct.get(d)
+      if val != None:
+        dct[d] = val + 1
+      else:
+        dct[d] = 1
+        cnom = cnom + 1
+      n = n + 1
+  for key in dct:
+    if dct[key] == 1:
+      f1 = f1 + 1
+  C_hat = 1.0 - float(f1)/float(n)
+  return float(cnom)/float(C_hat)
+
+
+
+#######################End Chao92 Estimator##############################
+
 #Finds and displays the results for percentage of errors remaining in testing set after using
 #empirical accuracy, cross-validation, and species estimation approaches
 def main():
@@ -355,6 +384,7 @@ def main():
   print("Measuring False Positive Rate")
   print("Empirical False Positive Rate: " + str(eA))
   print("Cross-Validation False Positive Rate: " + str(cV))
+  
   
        
 
