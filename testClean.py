@@ -7,6 +7,8 @@ import Levenshtein as pL
 #write a dirty version of the inputted filename to tmpfile,
 #where the column indicated by colnum is made dirty
 def writeDV(filename, tmpfile, colnum):
+  numErrors = 0
+  errstrs = dict()
   with open(tmpfile, 'w+') as tmp:
     with open(filename, 'rb') as csvfile:
       csvreader = csv.reader(csvfile, delimiter=',')
@@ -15,15 +17,29 @@ def writeDV(filename, tmpfile, colnum):
           continue
         else:
           csvwriter = csv.writer(tmp,delimiter=',',quotechar='"',quoting=csv.QUOTE_MINIMAL)
-          dStr = perturb(row[colnum])
+          dStr,c = perturb(row[colnum])
+          if c == True:
+            numErrors = numErrors + 1
+            val = errstrs.get(dStr)
+            if val != None:
+              errstrs[dStr] = errstrs[dStr] + 1
+            else:
+              errstrs[dStr] = 1
           row[colnum] = dStr
           csvwriter.writerow(row)
+  numDistinct = 0
+  for key in errstrs:
+      if errstrs[key] == 1:
+        numDistinct = numDistinct + 1
+  print("Number of Errors Introduced: " + str(numErrors))
+  print("Number of Distinct Errors Introduced: " + str(numDistinct))
+  
 
 #describes different ways we might perturb a string
 def perturb(s):
   DorC = random.randint(0,1)
   if DorC == 0:
-    return s
+    return s,False
   else:
     ptype = random.randint(0,2)
     if ptype == 0: #modify a suffix of the string
@@ -32,17 +48,17 @@ def perturb(s):
       for i in range(len(s) - ssize):
         c = random.choice(string.ascii_letters)
         prefix = prefix + c
-      return prefix
+      return prefix,True
     elif ptype == 1: #append something to the end of the string
       suflen = random.randint(0,len(s)-1)
       suffix = ''
       for i in range(suflen):
         c = random.choice(string.ascii_letters)
         suffix = suffix + c
-      return s + suffix
+      return s + suffix,True
     elif ptype == 2: #delete something from the end of the string
       preflen = random.randint(1,len(s))
-      return s[:preflen] 
+      return s[:preflen],True 
 
 #pick a random sample of a given size from the given list of values from a column of a dataset
 def pickSample(ffull,size):
@@ -313,13 +329,17 @@ def Chao92noSkew(sample,gtarr):
         dct[d] = val + 1
       else:
         dct[d] = 1
-        cnom = cnom + 1
-      n = n + 1
+        cnom = cnom + 1 #c_nom is being computed as the number of types of different errors
+      n = n + 1 #n is being computed as the number of errors, 
+      #with no regard for whether it is distinct or not
   for key in dct:
     if dct[key] == 1:
-      f1 = f1 + 1
+      f1 = f1 + 1 #f1 is the number of unique errors
   C_hat = 1.0 - float(f1)/float(n)
-  return float(cnom)/float(C_hat)
+  print("c_nominal: " + str(cnom))
+  print("f1: " + str(f1))
+  print("n: " + str(n))
+  return float(cnom)/float(C_hat) - float(cnom)
 
 
 
@@ -384,6 +404,22 @@ def main():
   print("Measuring False Positive Rate")
   print("Empirical False Positive Rate: " + str(eA))
   print("Cross-Validation False Positive Rate: " + str(cV))
+
+  #Chao92 estimator, assuming a perfect cleaning function on the sample
+  darrv4 = parseF(dfile,False,cnum)
+  gtarrv4 = parseF(ofile,True,cnum)
+  avg = 0.0
+  for i in range(100):
+      sample = pickSample(darrv4, len(darrv4)/8)
+      cEst = Chao92noSkew(sample,gtarrv4)
+      print("cEst " + str(i) + ": " + str(cEst))
+      avg = avg + cEst
+  avg = avg / 100.0
+  print("Average Chao92 Estimation: " + str(avg))
+  print("Sample size: " + str(len(sample)))
+  print("Dataset length: " + str(len(gtarrv4)))
+  
+       
   
   
        
